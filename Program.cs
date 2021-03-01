@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 
 namespace PathFinding
@@ -21,6 +20,58 @@ namespace PathFinding
                     stringMap = sr.ReadToEnd();
                 }
                 char[,] map = LoadMap(stringMap);
+
+                StringBuilder sb = new StringBuilder();
+                char[,] doodleMap = map;
+                int[] lastMarked = FindTiles(map, 'A', true)[0];
+                List<Step> solution = SolveMaze(map, '1', '0', 'A', 'B', false);
+                int pos = 0;
+                foreach (Step step in solution)
+                {
+                    for (int i = 0; i < doodleMap.GetLength(0); i++)
+                    {
+                        for (int j = 0; j < doodleMap.GetLength(1); j++)
+                        {
+                            sb.Append(doodleMap[i,j]);
+                            sb.Append(' ');
+                        }
+                        sb.Append("\n");
+                    }
+                    sb.Append("\n");
+
+                    foreach (Step oneStep in solution)
+                    {
+                        sb.Append(oneStep);
+                        sb.Append("\n");
+                    }
+
+                    Console.Clear();
+                    Console.WriteLine(sb.ToString());
+                    Thread.Sleep(500);
+
+                    sb.Clear();
+                    if (solution[pos] == Step.Down) 
+                    { 
+                        doodleMap[lastMarked[0] + 1, lastMarked[1]] = '■';
+                        lastMarked[0]++;
+                    }
+                    else if (solution[pos] == Step.Up) 
+                    { 
+                        doodleMap[lastMarked[0] - 1, lastMarked[1]] = '■';
+                        lastMarked[0]--;
+                    }
+                    else if (solution[pos] == Step.Right) 
+                    { 
+                        doodleMap[lastMarked[0], lastMarked[1] + 1] = '■';
+                        lastMarked[1]++;
+                    }
+                    else if (solution[pos] == Step.Left) 
+                    { 
+                        doodleMap[lastMarked[0], lastMarked[1] - 1] = '■';
+                        lastMarked[1]--;
+                    }
+                    pos++;
+                }
             }
             catch (Exception e) { Console.WriteLine(e); }
             Console.ReadLine();
@@ -72,9 +123,43 @@ namespace PathFinding
                     if (map[i,j] == searched) { matches.Add(new int[] { i, j }); }
                 }
             }
-            if (onelyOnce && matches.Count > 1) { throw new ArgumentException("Map contains more than one tile of this type but onely one is asked to be find!")}
+            if (onelyOnce && matches.Count > 1) { throw new ArgumentException("Map contains more than one tile of this type but onely one is asked to be find!"); }
             if (matches.Count > 0) { return matches; }
             else { throw new ArgumentException("Tile not found!"); }
+        }
+
+        public static bool ListOfListsContainsIntArray(List<List<int[]>> list, int[] element)
+        {
+            foreach (List<int[]> sublist in list)
+            {
+                if(ListContainsIntArray(sublist, element)) { return true; }
+            }
+            return false;
+        }
+
+        public static bool ListContainsIntArray(List<int[]> list, int[] element)
+        {
+            int pocet;
+            foreach (int[] IntArr in list)
+            {
+                pocet = 0;
+                for (int i = 0; i < IntArr.Length; i++)
+                {
+                    if (IntArr[i] == element[i]) { pocet++; }
+                }
+                if (pocet == IntArr.Length) { return true; }
+            }
+            return false;
+        }
+
+        public static List<int[]> SameIntArrForTwoLists(List<int[]> list1, List<int[]> list2)
+        {
+            List<int[]> final = new List<int[]>();
+            foreach(int[] item in list1)
+            {
+                if (ListContainsIntArray(list2, item)) { final.Add(item); }
+            }
+            return final;
         }
 
         public static List<Step> SolveMaze(char[,] map, char barier, char free, char begening, char end, bool multipleEndsPossible)
@@ -82,67 +167,95 @@ namespace PathFinding
             List<Step> way = new List<Step>();
             List<List<int[]>> tiles = new List<List<int[]>>();
             CheckMap(map, barier, free, begening, end, multipleEndsPossible);
-            tiles.Add(new List<int[]>{FindTiles(map, begening, true).ToArray()[0]};
+            tiles.Add(FindTiles(map, begening, true));
             List<int[]> ends = FindTiles(map, end, !multipleEndsPossible);
             bool found = false;
             List<int[]> curentList = new List<int[]>(); //in the end this is list of found endpoints
-            int[] curentCoord;
+            int[] curentCoord = new int[] { 1, 1 };
 
             while (!found)
             {
-                curentList.Clear();
-                foreach (int[] start in tiles[tiles.Count-1])
+                curentList = new List<int[]>();
+                foreach (int[] start in tiles[tiles.Count - 1])
                 {
-                    try
-                    {
-                        if
-                        (
-                            map[start[0] + 1, start[1]] == free &&
-                            !tiles[tiles.Count - 1].Any(item => item == new int[] { start[0] + 1, start[1] })
-                        ) { curentList.Add(new int[] { start[0] + 1, start[1] }); }
-                    }
-                    catch (IndexOutOfRangeException) { }
-                    try
-                    {
-                        if
-                        (
-                            map[start[0] - 1, start[1]] == free &&
-                            !tiles[tiles.Count - 1].Any(item => item == new int[] { start[0] - 1, start[1] })
-                        ) { curentList.Add(new int[] { start[0] - 1, start[1] }); }
-                    }
-                    catch (IndexOutOfRangeException) { }
-                    try
-                    {
-                        if
-                        (
-                            map[start[0], start[1] + 1] == free &&
-                            !tiles[tiles.Count - 1].Any(item => item == new int[] { start[0], start[1] + 1 })
-                        ) { curentList.Add(new int[] { start[0], start[1] + 1 }); }
-                    }
-                    catch (IndexOutOfRangeException) { }
-                    try
-                    {
-                        if
-                        (
-                            map[start[0], start[1] - 1] == free &&
-                            !tiles[tiles.Count - 1].Any(item => item == new int[] { start[0], start[1] - 1 })
-                        ) { curentList.Add(new int[] { start[0], start[1] - 1 }); }
-                    }
-                    catch (IndexOutOfRangeException) { }
+                    curentCoord = new int[] { start[0] + 1, start[1] };
+                    if
+                    (
+                        start[0] + 1 != map.GetLength(0) &&
+                        (map[start[0] + 1, start[1]] == free || map[start[0] + 1, start[1]] == end) &&
+                        !ListOfListsContainsIntArray(tiles, curentCoord) &&
+                        !ListContainsIntArray(curentList, curentCoord)
+                    ) { curentList.Add(curentCoord); }
+
+                    curentCoord = new int[] { start[0] - 1, start[1] };
+                    if
+                    (
+                        start[0] - 1 > -1 &&
+                        (map[start[0] - 1, start[1]] == free || map[start[0] - 1, start[1]] == end) &&
+                        !ListOfListsContainsIntArray(tiles, curentCoord) &&
+                        !ListContainsIntArray(curentList, curentCoord)
+                    ) { curentList.Add(curentCoord); }
+
+                    curentCoord = new int[] { start[0], start[1] + 1 };
+                    if
+                    (
+                        start[1] + 1 != map.GetLength(1) &&
+                        (map[start[0], start[1] + 1] == free || map[start[0], start[1] + 1] == end) &&
+                        !ListOfListsContainsIntArray(tiles, curentCoord) &&
+                        !ListContainsIntArray(curentList, curentCoord)
+                    ) { curentList.Add(curentCoord); }
+
+                    curentCoord = new int[] { start[0], start[1] - 1 };
+                    if
+                    (
+                        start[1] - 1 > -1 &&
+                        (map[start[0], start[1] - 1] == free || map[start[0], start[1] - 1] == end) &&
+                        !ListOfListsContainsIntArray(tiles, curentCoord) &&
+                        !ListContainsIntArray(curentList, curentCoord)
+                    ) { curentList.Add(curentCoord); }
+
                 }
                 tiles.Add(curentList);
-                if (curentList.Intersect(ends).Count() > 1) 
-                { 
-                    found = true;
-                    curentCoord = curentList.Intersect(ends).ToList()[0]; //tohle by se mělo upravit, aby tam nebylo to .ToList()
+                foreach (int[] endCoord in ends)
+                {
+                    if (ListOfListsContainsIntArray(tiles, endCoord))
+                    {
+                        found = true;
+                        curentCoord = SameIntArrForTwoLists(curentList, ends)[0];
+                    }
                 }
+                if (tiles.Count > map.GetLength(0) * map.GetLength(1)) { throw new ArgumentException("Unsolvable maze!"); }
             }
 
-            for (int i = tiles.Count-1; i >= 0; i--)
+            for (int i = tiles.Count-2; i >= 0; i--)
             {
-                //tenhle loop pojede "pozpátku" skrz tiles(postupný list těch průstupných míst) 
-                //a u každé "vrstvy" vyhledá tile, v dochozí vzdálenosti z curentCoord
-                //a přidá směr z této do CurentCoord do way a přiřadí tento tile do CurentCoord
+                foreach (int[] coord in tiles[i])
+                {
+                    if (coord[0] == curentCoord[0] + 1 && coord[1] == curentCoord[1]) 
+                    { 
+                        way.Add(Step.Up);
+                        curentCoord = coord;
+                        break;
+                    }
+                    if (coord[0] == curentCoord[0] - 1 && coord[1] == curentCoord[1])
+                    {
+                        way.Add(Step.Down);
+                        curentCoord = coord;
+                        break;
+                    }
+                    if (coord[1] == curentCoord[1] + 1 && coord[0] == curentCoord[0])
+                    {
+                        way.Add(Step.Left);
+                        curentCoord = coord;
+                        break;
+                    }
+                    if (coord[1] == curentCoord[1] - 1 && coord[0] == curentCoord[0])
+                    {
+                        way.Add(Step.Right);
+                        curentCoord = coord;
+                        break;
+                    }
+                }
             }
             
 
@@ -152,25 +265,3 @@ namespace PathFinding
     }
 
 }
-
-/*
-Příklad: Vytvořte program, který pro robota, 
-který umí udělat 1 krok vlevo, vpravo, nahoru nebo dolů, 
-vytvoří posloupnost kroků tak, že se robot dostane z libovolného výchozího místa 
-do libovolného konečného místa. 
-Robot prochází dvoudimenzionálním prostorem s bariérami, který modelujte jako 
-dvoudimenzionální pole celých čísel, kde 0 značí volné pole a 1 značí obsazené pole:
-
-Příklad prostoru:
-Z 0 0 0 0 0 0 0 0
-0 1 1 1 1 1 0 0 0
-1 0 0 0 0 0 0 1 1
-0 0 0 0 1 0 0 1 1
-1 1 1 1 1 1 0 1 1
-1 1 1 1 1 0 0 0 0
-0 0 K 0 0 0 0 0 0
-
-Vypište instrukce robotu tak, aby se dostal z místa Z do místa K.
-Zakreslete postup robota do prostoru.
-
- */
